@@ -1,0 +1,142 @@
+/*
+ * parser.cup -- SPL parser specification
+ */
+
+
+package parse;
+import absyn.*;
+import java_cup.runtime.*;
+
+
+parser code {:
+
+  public void syntax_error(Symbol currToken) {
+    System.out.println(
+      "**** Error: syntax error" +
+      " in line " + currToken.left +
+      ", column " + currToken.right
+    );
+    System.exit(0);
+  }
+
+:}
+
+
+terminal		ARRAY, IF, PROC, IDENT, LPAREN, RPAREN, LCURL, RCURL, LBRACK, RBRACK,
+			VAR, COLON, TYPE, SEMIC, ASGN, REF, OF, COMMA, ELSE, PLUS, WHILE,
+			MINUS, STAR, SLASH, INTLIT, GE, GT, LT, NE, LE, EQ;
+
+
+non terminal		program, typedef, prochead, instructions, procarg_type, procarg_ref,
+			procargs, vardec, varasgn, arraydec, arrayasgn, arrayindex, proccall,
+ 			proccallvars, math_expression, factor, component, number, var, sign,
+			bool_expression, logical_operator, whileloop, if_statement;
+
+start with program;
+
+
+program			::= typedef
+			  | typedef program
+			  | prochead program
+			  | prochead
+			  ;
+
+typedef			::= TYPE IDENT EQ IDENT SEMIC
+			  | TYPE IDENT EQ arraydec SEMIC
+			  ;
+
+prochead		::= PROC IDENT LPAREN RPAREN LCURL instructions RCURL
+			  | PROC IDENT LPAREN procargs RPAREN LCURL instructions RCURL
+			  ;
+
+procarg_type		::= IDENT COLON IDENT
+			  ;
+
+procarg_ref		::= REF IDENT COLON IDENT
+			  ;
+
+procargs		::= procarg_type COMMA procargs
+			  | procarg_ref COMMA procargs
+			  | procarg_type
+			  | procarg_ref
+			  ;
+
+instructions		::= vardec instructions
+			  | arrayasgn instructions
+			  | varasgn instructions
+			  | proccall instructions
+			  | whileloop instructions
+			  | if_statement instructions
+			  | // epsilon
+			  ;
+
+vardec			::= VAR IDENT COLON math_expression SEMIC
+			  ;
+
+varasgn			::= IDENT ASGN math_expression SEMIC
+			  ;
+			  
+
+arraydec		::= ARRAY LBRACK INTLIT RBRACK OF IDENT
+			  | ARRAY LBRACK INTLIT RBRACK OF arraydec
+			  ;
+
+arrayasgn		::= IDENT arrayindex ASGN math_expression SEMIC
+			  ;
+
+arrayindex		::= LBRACK math_expression RBRACK
+			  | LBRACK math_expression RBRACK arrayindex
+			  ;
+
+proccall		::= IDENT LPAREN RPAREN SEMIC
+			  | IDENT LPAREN proccallvars RPAREN SEMIC
+			  ;
+
+proccallvars		::= math_expression
+			  | math_expression COMMA proccallvars
+			  ;
+
+whileloop		::= WHILE LPAREN bool_expression RPAREN LCURL instructions RCURL
+			  ;
+
+if_statement		::= IF:i LPAREN bool_expression: t RPAREN LCURL instructions:s1 RCURL
+			    ELSE LCURL instructions:s2 RCURL
+                           {: RESULT = new ifStm(Integer) ileft, (Integer) iright, (Exp) t, (Stm) s1,  
+                              (Stm) s2 :}
+			  | IF:i LPAREN bool_expression:t RPAREN LCURL instructions RCURL
+                           {: RESULT = new ifStm(Integer) ileft, (Integer) iright, (Exp) t, (Stm) s1 :}
+			  ;
+
+bool_expression		::= math_expression logical_operator math_expression
+			  ;
+
+logical_operator	::= EQ | GE | GT | LT | NE | LE
+			  ;
+
+math_expression		::= component
+			  | component PLUS math_expression
+			  | component MINUS math_expression  
+			  ;
+
+factor			::= number
+			  | var
+			  | var arrayindex
+			  | LPAREN math_expression RPAREN	
+			  ;
+
+component		::= factor
+			  | factor STAR component
+			  | factor SLASH component
+			  ;
+
+number			::= INTLIT
+			  | sign number
+			  ;
+
+var			::= IDENT
+			  | sign IDENT
+			  ;
+
+sign			::= MINUS
+			  | PLUS
+			  ;
